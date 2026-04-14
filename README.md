@@ -104,7 +104,7 @@ A complete whitelabel PBX (Private Branch Exchange) system built on SignalWire's
 
 ```bash
 git clone <repo-url>
-cd galilee-mbc
+cd KLTC-pbx
 
 # Install server dependencies
 npm install
