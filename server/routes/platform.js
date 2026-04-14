@@ -1,5 +1,5 @@
 /**
- * Platform Admin Routes - ONE-STOP-SHOP
+ * Platform Admin Routes — ONE-STOP-SHOP
  *
  * Platform admin can manage EVERYTHING for any tenant:
  * - Purchase/port phone numbers
@@ -53,8 +53,14 @@ router.get('/dashboard', async (req, res, next) => {
       },
     });
 
-    res.json({ stats: { tenantCount, totalUsers, totalExtensions, totalCalls, totalNumbers }, recentTenants, recentCalls });
-  } catch (err) { next(err); }
+    res.json({
+      stats: { tenantCount, totalUsers, totalExtensions, totalCalls, totalNumbers },
+      recentTenants,
+      recentCalls,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ============================================================================
@@ -74,8 +80,9 @@ router.get('/tenants/:tenantId/extensions', async (req, res, next) => {
 router.post('/tenants/:tenantId/extensions', async (req, res, next) => {
   try {
     const tenant = await prisma.tenant.findUnique({ where: { id: req.params.tenantId } });
-    const sipUsername = req.params.tenantId.slice(0,8) + '_ext' + req.body.number;
+    const sipUsername = `${tenant.slug}_ext${req.body.number}`;
     const sipPassword = uuidv4().replace(/-/g, '').slice(0, 16);
+
     const ext = await prisma.extension.create({
       data: {
         tenantId: req.params.tenantId,
@@ -100,7 +107,9 @@ router.post('/tenants/:tenantId/extensions', async (req, res, next) => {
 router.put('/tenants/:tenantId/extensions/:id', async (req, res, next) => {
   try {
     const data = { ...req.body };
-    delete data.tenantId; delete data.id; delete data.sipUsername;
+    delete data.tenantId;
+    delete data.id;
+    delete data.sipUsername;
     const ext = await prisma.extension.update({ where: { id: req.params.id }, data });
     res.json(ext);
   } catch (err) { next(err); }
@@ -114,8 +123,10 @@ router.delete('/tenants/:tenantId/extensions/:id', async (req, res, next) => {
 });
 
 // ============================================================================
-// MANAGE ANY TENANT'S PHONE NUMBERS - Purchase, Port, Route
+// MANAGE ANY TENANT'S PHONE NUMBERS — Purchase, Port, Route
 // ============================================================================
+
+// List tenant's numbers
 router.get('/tenants/:tenantId/phone-numbers', async (req, res, next) => {
   try {
     const numbers = await prisma.phoneNumber.findMany({
@@ -126,28 +137,35 @@ router.get('/tenants/:tenantId/phone-numbers', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Search available numbers to purchase
 router.get('/tenants/:tenantId/phone-numbers/available', async (req, res, next) => {
   try {
     const tenant = await prisma.tenant.findUnique({ where: { id: req.params.tenantId } });
     const sw = getClientForTenant(tenant);
     const { areaCode, country, contains } = req.query;
+
     const params = { areaCode, country };
     if (contains) params.Contains = contains;
+
     const result = await sw.listAvailableNumbers(params);
     res.json(result.available_phone_numbers || []);
   } catch (err) { next(err); }
 });
 
+// Purchase a number for a tenant
 router.post('/tenants/:tenantId/phone-numbers/purchase', async (req, res, next) => {
   try {
     const tenant = await prisma.tenant.findUnique({ where: { id: req.params.tenantId } });
     const sw = getClientForTenant(tenant);
-    const webhookUrl = process.env.WEBHOOK_BASE_URL + '/inbound-call';
+    const webhookUrl = `${process.env.WEBHOOK_BASE_URL}/inbound-call`;
+
     const purchased = await sw.purchaseNumber(req.body.phoneNumber);
+
     await sw.configureNumber(purchased.sid, {
       voiceUrl: webhookUrl,
-      statusCallback: process.env.WEBHOOK_BASE_URL + '/call-status',
+      statusCallback: `${process.env.WEBHOOK_BASE_URL}/call-status`,
     });
+
     const phoneNumber = await prisma.phoneNumber.create({
       data: {
         tenantId: req.params.tenantId,
@@ -158,50 +176,135 @@ router.post('/tenants/:tenantId/phone-numbers/purchase', async (req, res, next) 
         routeDestination: req.body.routeDestination,
       },
     });
+
     res.status(201).json(phoneNumber);
   } catch (err) { next(err); }
 });
 
+// Port in an existing number — submits directly to SignalWire
 router.post('/tenants/:tenantId/phone-numbers/port', async (req, res, next) => {
   try {
-    const { phoneNumbers, carrierName, accountNumber, accountPin, contactName, contactPhone, contactEmail, billingAddress, friendlyName } = req.body;
+    const {
+      phoneNumbers,       // array of numbers to port, e.g. ["+12145551234"]
+      carrierName,        // current carrier
+      accountNumber,      // account number with current carrier
+      accountPin,         // account PIN
+      contactName,        // authorized contact
+      contactPhone,       // contact phone
+      contactEmail,       // contact email
+      billingAddress,     // billing address object { street, city, state, zip }
+      friendlyName,       // label for the number
+    } = req.body;
+
+    const numbersToPort = phoneNumbers || [req.body.phoneNumber];
+    const tenant = await prisma.tenant.findUnique({ where: { id: req.params.tenantId } });
+    const sw = getClientForTenant(tenant);
+
+    // Submit port order to SignalWire
+    let portOrder = null;
+    let swError = null;
+    try {
+      portOrder = await sw.createPortOrder({
+        numbers: numbersToPort,
+        name: `${tenant.name} - Port ${numbersToPort[0]}`,
+        carrierName,
+        accountNumber,
+        accountPin,
+        contactName,
+        contactPhone,
+        contactEmail,
+        billingAddress: billingAddress || {
+          street: '',
+          city: '',
+          state: '',
+          zip: '',
+          country: 'US',
+        },
+      });
+      logger.info(`Port order created on SignalWire: ${JSON.stringify(portOrder)}`);
+    } catch (err) {
+      swError = err;
+      logger.error('SignalWire port order failed, saving locally', err);
+    }
+
+    // Save numbers as pending in our DB
     const created = [];
-    for (const number of (phoneNumbers || [req.body.phoneNumber])) {
+    for (const number of numbersToPort) {
       const pn = await prisma.phoneNumber.create({
         data: {
           tenantId: req.params.tenantId,
-          number,
-          friendlyName: friendlyName || ('Porting: ' + number),
-          active: false,
+          number: number,
+          friendlyName: friendlyName || `Porting: ${number}`,
+          active: false, // not active until port completes
           routeType: 'ivr',
-          callerIdName: 'PORT PENDING',
+          callerIdName: portOrder ? 'PORT SUBMITTED' : 'PORT PENDING',
         },
       });
       created.push(pn);
     }
+
+    // Create notification
     await prisma.notification.create({
       data: {
         tenantId: req.params.tenantId,
         type: 'system',
-        title: 'Number Port Request Submitted',
-        message: 'Port-in request for ' + (phoneNumbers?.join(', ') || req.body.phoneNumber) + ' from ' + carrierName + '. Account: ' + accountNumber + '. Contact: ' + contactName + '. Estimated completion: 7-14 business days.',
-        data: JSON.stringify({ phoneNumbers: phoneNumbers || [req.body.phoneNumber], carrierName, accountNumber, contactName, contactPhone, contactEmail, billingAddress, status: 'pending', submittedAt: new Date().toISOString() }),
+        title: portOrder
+          ? 'Port Request Submitted to SignalWire'
+          : 'Port Request Saved (Manual Action Needed)',
+        message: portOrder
+          ? `Port-in order submitted for ${numbersToPort.join(', ')} from ${carrierName}. ` +
+            `SignalWire Order ID: ${portOrder.id || 'pending'}. ` +
+            `Estimated completion: 7-14 business days.`
+          : `Port request saved for ${numbersToPort.join(', ')} from ${carrierName}. ` +
+            `Auto-submission failed: ${swError?.message || 'unknown error'}. ` +
+            `Please submit manually at SignalWire dashboard.`,
+        data: JSON.stringify({
+          phoneNumbers: numbersToPort,
+          carrierName, accountNumber, contactName, contactPhone, contactEmail,
+          portOrderId: portOrder?.id || null,
+          status: portOrder ? 'submitted' : 'pending_manual',
+          submittedAt: new Date().toISOString(),
+        }),
       },
     });
-    res.status(201).json({
-      message: 'Port request created. Numbers saved as pending.',
-      numbers: created,
-      nextSteps: [
-        'Submit Letter of Authorization (LOA) to SignalWire',
-        'Upload recent bill from current carrier',
-        'Port typically completes in 7-14 business days',
-        'Numbers will auto-activate once port completes',
-      ],
-      signalwirePortUrl: 'https://' + process.env.SIGNALWIRE_SPACE_URL + '/phone_numbers/port',
-    });
+
+    if (portOrder) {
+      res.status(201).json({
+        message: 'Port request submitted to SignalWire!',
+        portOrderId: portOrder.id,
+        status: 'submitted',
+        numbers: created,
+        estimatedCompletion: '7-14 business days',
+      });
+    } else {
+      // Fallback — API didn't work, give manual instructions
+      res.status(201).json({
+        message: 'Port request saved. Auto-submission to SignalWire failed — submit manually.',
+        numbers: created,
+        manualUrl: `https://${process.env.SIGNALWIRE_SPACE_URL}/phone_numbers/port`,
+        error: swError?.message,
+        nextSteps: [
+          `Go to https://${process.env.SIGNALWIRE_SPACE_URL}/phone_numbers/port`,
+          `Enter numbers: ${numbersToPort.join(', ')}`,
+          `Carrier: ${carrierName}, Account: ${accountNumber}`,
+          `Upload LOA and recent bill`,
+        ],
+      });
+    }
   } catch (err) { next(err); }
 });
 
+// Check port order status
+router.get('/tenants/:tenantId/phone-numbers/port-status', async (req, res, next) => {
+  try {
+    const tenant = await prisma.tenant.findUnique({ where: { id: req.params.tenantId } });
+    const sw = getClientForTenant(tenant);
+    const orders = await sw.listPortOrders();
+    res.json(orders);
+  } catch (err) { next(err); }
+});
+
+// Update number routing
 router.put('/tenants/:tenantId/phone-numbers/:id', async (req, res, next) => {
   try {
     const data = {};
@@ -214,6 +317,7 @@ router.put('/tenants/:tenantId/phone-numbers/:id', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// Release a number
 router.delete('/tenants/:tenantId/phone-numbers/:id', async (req, res, next) => {
   try {
     const pn = await prisma.phoneNumber.findFirst({ where: { id: req.params.id, tenantId: req.params.tenantId } });
@@ -245,7 +349,11 @@ router.post('/tenants/:tenantId/ivr', async (req, res, next) => {
   try {
     const { options, ...menuData } = req.body;
     const menu = await prisma.ivrMenu.create({
-      data: { tenantId: req.params.tenantId, ...menuData, options: options ? { create: options } : undefined },
+      data: {
+        tenantId: req.params.tenantId,
+        ...menuData,
+        options: options ? { create: options } : undefined,
+      },
       include: { options: true },
     });
     res.status(201).json(menu);
@@ -255,11 +363,14 @@ router.post('/tenants/:tenantId/ivr', async (req, res, next) => {
 router.put('/tenants/:tenantId/ivr/:id', async (req, res, next) => {
   try {
     const { options, ...menuData } = req.body;
-    delete menuData.tenantId; delete menuData.id;
+    delete menuData.tenantId;
+    delete menuData.id;
     await prisma.ivrMenu.update({ where: { id: req.params.id }, data: menuData });
     if (options && Array.isArray(options)) {
       await prisma.ivrOption.deleteMany({ where: { ivrMenuId: req.params.id } });
-      await prisma.ivrOption.createMany({ data: options.map((o) => ({ ivrMenuId: req.params.id, ...o })) });
+      await prisma.ivrOption.createMany({
+        data: options.map((o) => ({ ivrMenuId: req.params.id, ...o })),
+      });
     }
     const updated = await prisma.ivrMenu.findUnique({ where: { id: req.params.id }, include: { options: true } });
     res.json(updated);
@@ -302,39 +413,59 @@ router.post('/tenants/:tenantId/ring-groups', async (req, res, next) => {
 });
 
 // ============================================================================
-// AI / SWAIG SETTINGS
+// AI / SWAIG SETTINGS — Per tenant, all from the admin panel
 // ============================================================================
+
+// Get AI settings for a tenant
 router.get('/tenants/:tenantId/ai-settings', async (req, res, next) => {
   try {
     const tenant = await prisma.tenant.findUnique({
       where: { id: req.params.tenantId },
-      select: { id: true, name: true, aiIvrEnabled: true, aiIvrPrompt: true, aiSummaryEnabled: true, smsSummaryEnabled: true, notificationPhone: true, swProjectId: true, swSpaceUrl: true },
+      select: {
+        id: true, name: true,
+        aiIvrEnabled: true, aiIvrPrompt: true,
+        aiSummaryEnabled: true, smsSummaryEnabled: true,
+        notificationPhone: true,
+        swProjectId: true, swSpaceUrl: true,
+      },
     });
     if (!tenant) return res.status(404).json({ error: 'Tenant not found' });
+
+    // Build SWAIG webhook URLs for this tenant
     const webhookBase = process.env.WEBHOOK_BASE_URL || 'http://localhost:3000/api/webhooks/signalwire';
     const swaigConfig = {
-      transferUrl: webhookBase + '/swaig-transfer?tenantId=' + tenant.id,
-      checkHoursUrl: webhookBase + '/swaig-check-hours?tenantId=' + tenant.id,
-      takeMessageUrl: webhookBase + '/swaig-take-message?tenantId=' + tenant.id,
-      functionsUrl: webhookBase + '/swaig-functions?tenantId=' + tenant.id,
-      inboundCallUrl: webhookBase + '/inbound-call',
-      aiGatherUrl: webhookBase + '/ai-gather?tenantId=' + tenant.id,
+      transferUrl: `${webhookBase}/swaig-transfer?tenantId=${tenant.id}`,
+      checkHoursUrl: `${webhookBase}/swaig-check-hours?tenantId=${tenant.id}`,
+      takeMessageUrl: `${webhookBase}/swaig-take-message?tenantId=${tenant.id}`,
+      functionsUrl: `${webhookBase}/swaig-functions?tenantId=${tenant.id}`,
+      inboundCallUrl: `${webhookBase}/inbound-call`,
+      aiGatherUrl: `${webhookBase}/ai-gather?tenantId=${tenant.id}`,
     };
+
     res.json({ ...tenant, swaigConfig });
   } catch (err) { next(err); }
 });
 
+// Update AI settings for a tenant
 router.put('/tenants/:tenantId/ai-settings', async (req, res, next) => {
   try {
     const data = {};
-    for (const f of ['aiIvrEnabled', 'aiIvrPrompt', 'aiSummaryEnabled', 'smsSummaryEnabled', 'notificationPhone']) {
+    const fields = ['aiIvrEnabled', 'aiIvrPrompt', 'aiSummaryEnabled', 'smsSummaryEnabled', 'notificationPhone'];
+    for (const f of fields) {
       if (req.body[f] !== undefined) data[f] = req.body[f];
     }
+
     const tenant = await prisma.tenant.update({
       where: { id: req.params.tenantId },
       data,
-      select: { id: true, name: true, aiIvrEnabled: true, aiIvrPrompt: true, aiSummaryEnabled: true, smsSummaryEnabled: true, notificationPhone: true },
+      select: {
+        id: true, name: true,
+        aiIvrEnabled: true, aiIvrPrompt: true,
+        aiSummaryEnabled: true, smsSummaryEnabled: true,
+        notificationPhone: true,
+      },
     });
+
     res.json(tenant);
   } catch (err) { next(err); }
 });
@@ -347,10 +478,17 @@ router.get('/tenants/:tenantId/call-logs', async (req, res, next) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const where = { tenantId: req.params.tenantId };
+
     const [logs, total] = await Promise.all([
       prisma.callLog.findMany({
-        where, skip: (page - 1) * limit, take: limit, orderBy: { startedAt: 'desc' },
-        include: { phoneNumber: { select: { number: true, friendlyName: true } }, inboundExt: { select: { number: true, name: true } } },
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { startedAt: 'desc' },
+        include: {
+          phoneNumber: { select: { number: true, friendlyName: true } },
+          inboundExt: { select: { number: true, name: true } },
+        },
       }),
       prisma.callLog.count({ where }),
     ]);
@@ -384,7 +522,8 @@ router.get('/admins', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post('/admins',
+router.post(
+  '/admins',
   [body('email').isEmail(), body('password').isLength({ min: 8 }), body('name').notEmpty()],
   validate,
   async (req, res, next) => {
