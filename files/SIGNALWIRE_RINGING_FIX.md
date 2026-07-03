@@ -109,6 +109,31 @@ Account 1:
 Grandstream phones can also auto-provision from
 `https://pbx.kltconnect.com/provisioning/cfg<MAC>.xml` — supported now.
 
+## AI Agent on a number (2888 setup)
+
++1 256 712 2888 is answered by the SignalWire AI Agent ("Knox Media Group"),
+which transfers callers to the KMGI phones on request.
+
+How it's wired:
+- Phone Numbers → 2888 → Assigned Resource = the AI Agent (NOT the voice webhook)
+- The agent has a SWAIG function named `transfer` with webhook URL
+  `https://pbx.kltconnect.com/api/webhooks/swaig-transfer?customerId=1`
+  and one required string argument `destination`
+- The webhook looks up the customer's ring group in the PBX database and
+  returns SWML that dials every registered member in parallel, with
+  `transfer: "true"` so the AI session ends before the dial (without that
+  flag SignalWire rejects the connect with 409 "Wait for ai to finish")
+
+IMPORTANT: because 2888 is AI-handled, always run the sync script with
+`--skip 2888` or it will point the number back at the plain voice webhook
+and disconnect the AI:
+
+    npx tsx scripts/signalwire-sync.ts --apply --skip 2888
+
+To put the AI on another company's number, repeat the dashboard steps with
+`?customerId=2` (KLT Connect) or `?customerId=3` (ERITN) in the function
+URL, and add that number to the --skip list.
+
 ## If a phone still doesn't ring
 
 1. On the phone, check the line shows **Registered**.
