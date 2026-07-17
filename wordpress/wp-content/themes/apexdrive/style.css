@@ -1,0 +1,357 @@
+/*
+Theme Name:   ApexDrive
+Theme URI:    https://kltconnect.com
+Author:       Knox Media Group
+Description:  High-tech dark theme for used-car dealerships. Neon-accented showroom design with live inventory filtering, vehicle galleries, and a financing calculator. Requires the ApexDrive Inventory plugin.
+Version:      1.0.0
+Requires PHP: 7.4
+License:      GPL-2.0-or-later
+Text Domain:  apexdrive
+*/
+
+/* ====== Design tokens ====== */
+:root {
+  --bg: #06090f;
+  --bg-2: #0b1220;
+  --panel: rgba(255, 255, 255, 0.04);
+  --panel-border: rgba(148, 197, 255, 0.14);
+  --text: #e6edf7;
+  --muted: #93a1b8;
+  --accent: #22d3ee;
+  --accent-2: #6366f1;
+  --accent-glow: rgba(34, 211, 238, 0.35);
+  --good: #34d399;
+  --warn: #fbbf24;
+  --radius: 14px;
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  --font: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background:
+    radial-gradient(1100px 500px at 85% -10%, rgba(99, 102, 241, 0.16), transparent 60%),
+    radial-gradient(900px 450px at 0% 0%, rgba(34, 211, 238, 0.10), transparent 55%),
+    var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: none; filter: brightness(1.15); }
+
+.container { width: min(1200px, 92vw); margin-inline: auto; }
+
+h1, h2, h3, h4 { line-height: 1.15; letter-spacing: -0.02em; font-weight: 800; }
+
+.section { padding: 72px 0; }
+.section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 32px; flex-wrap: wrap; }
+.section-head h2 { font-size: clamp(1.6rem, 3vw, 2.3rem); }
+.kicker {
+  display: inline-block; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.22em;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
+}
+
+/* ====== Buttons ====== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 26px; border-radius: 10px; font-weight: 700; font-size: 0.95rem;
+  border: 1px solid transparent; cursor: pointer; transition: all 0.2s ease;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #04121a; box-shadow: 0 6px 24px var(--accent-glow);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 32px var(--accent-glow); color: #04121a; }
+.btn-ghost { background: transparent; color: var(--text); border-color: var(--panel-border); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-block { width: 100%; }
+
+/* ====== Header ====== */
+.site-header {
+  position: sticky; top: 0; z-index: 50;
+  backdrop-filter: blur(14px);
+  background: rgba(6, 9, 15, 0.72);
+  border-bottom: 1px solid var(--panel-border);
+  transition: box-shadow 0.25s ease;
+}
+.site-header.is-scrolled { box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); }
+.header-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 0; }
+
+.brand { display: flex; align-items: center; gap: 10px; font-size: 1.35rem; font-weight: 900; color: var(--text); letter-spacing: -0.02em; }
+.brand:hover { color: var(--text); }
+.brand-mark {
+  width: 34px; height: 34px; border-radius: 9px; flex: none;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  display: grid; place-items: center; color: #04121a; font-size: 1.05rem;
+  box-shadow: 0 0 18px var(--accent-glow);
+}
+.brand span em { font-style: normal; color: var(--accent); }
+
+.main-nav ul { display: flex; gap: 6px; list-style: none; }
+.main-nav a {
+  display: block; padding: 9px 15px; border-radius: 9px;
+  color: var(--muted); font-weight: 600; font-size: 0.94rem;
+}
+.main-nav a:hover, .main-nav .current-menu-item > a, .main-nav .current_page_item > a { color: var(--text); background: var(--panel); }
+
+.header-cta { display: flex; align-items: center; gap: 14px; }
+.header-phone { font-weight: 700; color: var(--text); font-size: 0.94rem; }
+.header-phone small { display: block; color: var(--muted); font-weight: 500; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.nav-toggle { display: none; background: none; border: 1px solid var(--panel-border); border-radius: 9px; padding: 9px 12px; color: var(--text); font-size: 1.15rem; cursor: pointer; }
+
+/* ====== Hero ====== */
+.hero { position: relative; padding: 96px 0 84px; overflow: hidden; }
+.hero-grid-lines {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+  background-image:
+    linear-gradient(rgba(148, 197, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 197, 255, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+.hero-inner { position: relative; max-width: 780px; }
+.hero h1 { font-size: clamp(2.3rem, 5.5vw, 4rem); margin: 14px 0 18px; }
+.hero h1 .glow {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hero p.lede { font-size: 1.12rem; color: var(--muted); max-width: 560px; margin-bottom: 34px; }
+
+.hero-stats { display: flex; gap: 40px; margin-top: 44px; flex-wrap: wrap; }
+.hero-stat b { display: block; font-size: 1.7rem; font-weight: 900; color: var(--text); }
+.hero-stat span { color: var(--muted); font-size: 0.85rem; }
+
+/* ====== Search bar ====== */
+.search-bar {
+  display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 10px;
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: var(--radius); padding: 14px; backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+}
+.search-bar select, .search-bar input {
+  background: var(--bg-2); border: 1px solid var(--panel-border); color: var(--text);
+  border-radius: 9px; padding: 12px 13px; font-size: 0.94rem; font-family: inherit; width: 100%;
+}
+.search-bar select:focus, .search-bar input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15); }
+
+/* ====== Vehicle cards ====== */
+.vehicle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; }
+
+.vehicle-card {
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: var(--radius); overflow: hidden; position: relative;
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+.vehicle-card:hover { transform: translateY(-5px); border-color: rgba(34, 211, 238, 0.45); box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5); }
+
+.vehicle-card-media { position: relative; aspect-ratio: 16 / 10; background: var(--bg-2); overflow: hidden; }
+.vehicle-card-media img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.35s ease; }
+.vehicle-card:hover .vehicle-card-media img { transform: scale(1.05); }
+.vehicle-card-media .no-photo {
+  width: 100%; height: 100%; display: grid; place-items: center;
+  color: var(--muted); font-size: 2.6rem;
+  background: linear-gradient(135deg, var(--bg-2), rgba(99, 102, 241, 0.12));
+}
+
+.badge {
+  position: absolute; top: 12px; left: 12px; z-index: 2;
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 5px 11px; border-radius: 999px; backdrop-filter: blur(6px);
+}
+.badge-featured { background: rgba(34, 211, 238, 0.16); color: var(--accent); border: 1px solid rgba(34, 211, 238, 0.4); }
+.badge-sold { background: rgba(248, 113, 113, 0.16); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4); }
+.badge-pending { background: rgba(251, 191, 36, 0.14); color: var(--warn); border: 1px solid rgba(251, 191, 36, 0.4); }
+
+.vehicle-card-body { padding: 18px 20px 20px; }
+.vehicle-card-title { font-size: 1.06rem; font-weight: 800; margin-bottom: 4px; }
+.vehicle-card-title a { color: var(--text); }
+.vehicle-card-title a:hover { color: var(--accent); }
+.vehicle-card-sub { color: var(--muted); font-size: 0.84rem; margin-bottom: 14px; }
+
+.vehicle-card-specs {
+  display: flex; gap: 14px; flex-wrap: wrap; padding: 12px 0; margin-bottom: 14px;
+  border-top: 1px solid var(--panel-border); border-bottom: 1px solid var(--panel-border);
+}
+.vehicle-card-specs span { color: var(--muted); font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px; }
+
+.vehicle-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.price { font-size: 1.3rem; font-weight: 900; color: var(--text); }
+.price .price-was { font-size: 0.85rem; color: var(--muted); text-decoration: line-through; font-weight: 600; margin-right: 8px; }
+.price .price-sale { color: var(--good); }
+
+/* ====== Inventory layout ====== */
+.inventory-layout { display: grid; grid-template-columns: 280px 1fr; gap: 30px; align-items: start; }
+
+.filter-panel {
+  position: sticky; top: 92px;
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: var(--radius); padding: 22px;
+}
+.filter-panel h3 { font-size: 1rem; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; }
+.filter-panel h3 button { background: none; border: none; color: var(--accent); font-size: 0.8rem; cursor: pointer; font-weight: 700; }
+.filter-group { margin-bottom: 16px; }
+.filter-group label { display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 7px; }
+.filter-group select, .filter-group input {
+  width: 100%; background: var(--bg-2); border: 1px solid var(--panel-border);
+  color: var(--text); border-radius: 9px; padding: 10px 12px; font-size: 0.92rem; font-family: inherit;
+}
+.filter-group select:focus, .filter-group input:focus { outline: none; border-color: var(--accent); }
+.filter-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.inventory-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+.inventory-count { color: var(--muted); font-size: 0.92rem; }
+.inventory-count b { color: var(--accent); }
+.inventory-toolbar select { background: var(--bg-2); border: 1px solid var(--panel-border); color: var(--text); border-radius: 9px; padding: 9px 12px; font-family: inherit; }
+
+.inventory-grid { min-height: 200px; position: relative; }
+.inventory-grid.is-loading { opacity: 0.45; pointer-events: none; }
+.inventory-empty { padding: 60px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--panel-border); border-radius: var(--radius); grid-column: 1 / -1; }
+
+.load-more-wrap { text-align: center; margin-top: 34px; }
+
+/* ====== Single vehicle ====== */
+.vehicle-hero { padding: 44px 0 0; }
+.breadcrumbs { font-size: 0.85rem; color: var(--muted); margin-bottom: 18px; }
+.vehicle-title-row { display: flex; align-items: start; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 26px; }
+.vehicle-title-row h1 { font-size: clamp(1.6rem, 3.5vw, 2.4rem); }
+.vehicle-title-row .price { font-size: 2rem; }
+.vehicle-meta-line { color: var(--muted); font-size: 0.9rem; margin-top: 8px; display: flex; gap: 16px; flex-wrap: wrap; }
+
+.vehicle-layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 30px; align-items: start; padding-bottom: 72px; }
+
+.gallery-main {
+  aspect-ratio: 16 / 10; border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--panel-border); background: var(--bg-2); margin-bottom: 12px;
+}
+.gallery-main img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; }
+.gallery-thumbs button {
+  aspect-ratio: 16 / 10; border-radius: 9px; overflow: hidden; padding: 0;
+  border: 2px solid transparent; background: var(--bg-2); cursor: pointer;
+}
+.gallery-thumbs button.is-active { border-color: var(--accent); }
+.gallery-thumbs img { width: 100%; height: 100%; object-fit: cover; }
+
+.spec-panel, .lead-panel, .calc-panel {
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: var(--radius); padding: 24px; margin-bottom: 20px;
+}
+.spec-panel h3, .lead-panel h3, .calc-panel h3 { font-size: 1.05rem; margin-bottom: 16px; }
+
+.spec-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.spec-table td { padding: 9px 0; border-bottom: 1px solid var(--panel-border); }
+.spec-table td:first-child { color: var(--muted); width: 45%; }
+.spec-table td:last-child { font-weight: 600; text-align: right; }
+.spec-table tr:last-child td { border-bottom: none; }
+
+.feature-list { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; }
+.feature-list li { font-size: 0.92rem; color: var(--muted); padding-left: 22px; position: relative; }
+.feature-list li::before { content: "✓"; position: absolute; left: 0; color: var(--good); font-weight: 800; }
+
+.vehicle-description { margin: 34px 0; }
+.vehicle-description h2 { font-size: 1.3rem; margin-bottom: 14px; }
+.vehicle-description p { color: var(--muted); margin-bottom: 12px; }
+
+/* ====== Forms ====== */
+.lead-form input, .lead-form textarea, .calc-panel input {
+  width: 100%; background: var(--bg-2); border: 1px solid var(--panel-border);
+  color: var(--text); border-radius: 9px; padding: 12px 13px; font-size: 0.94rem;
+  font-family: inherit; margin-bottom: 12px;
+}
+.lead-form input:focus, .lead-form textarea:focus, .calc-panel input:focus { outline: none; border-color: var(--accent); }
+.lead-form .hp-field { position: absolute; left: -9999px; opacity: 0; }
+.form-msg { margin-top: 10px; font-size: 0.9rem; display: none; }
+.form-msg.is-success { display: block; color: var(--good); }
+.form-msg.is-error { display: block; color: #f87171; }
+
+/* ====== Financing calculator ====== */
+.calc-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.calc-row label, .calc-panel > label { display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; }
+.calc-result {
+  margin-top: 8px; padding: 18px; text-align: center; border-radius: 10px;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.10), rgba(99, 102, 241, 0.10));
+  border: 1px solid rgba(34, 211, 238, 0.25);
+}
+.calc-result b { display: block; font-size: 1.9rem; font-weight: 900; color: var(--accent); }
+.calc-result span { color: var(--muted); font-size: 0.82rem; }
+.calc-note { font-size: 0.75rem; color: var(--muted); margin-top: 10px; }
+
+/* ====== Feature tiles / trust section ====== */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+.tile {
+  background: var(--panel); border: 1px solid var(--panel-border);
+  border-radius: var(--radius); padding: 28px 24px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.tile:hover { transform: translateY(-4px); border-color: rgba(34, 211, 238, 0.4); }
+.tile-icon {
+  width: 46px; height: 46px; border-radius: 11px; display: grid; place-items: center;
+  font-size: 1.3rem; margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.18), rgba(99, 102, 241, 0.18));
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+.tile h3 { font-size: 1.05rem; margin-bottom: 8px; }
+.tile p { color: var(--muted); font-size: 0.92rem; }
+
+/* ====== CTA band ====== */
+.cta-band {
+  border-radius: var(--radius); padding: 56px 40px; text-align: center;
+  background:
+    radial-gradient(600px 200px at 50% 0%, rgba(34, 211, 238, 0.18), transparent 70%),
+    linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(34, 211, 238, 0.08));
+  border: 1px solid rgba(34, 211, 238, 0.25);
+}
+.cta-band h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); margin-bottom: 12px; }
+.cta-band p { color: var(--muted); margin-bottom: 26px; }
+
+/* ====== Footer ====== */
+.site-footer { border-top: 1px solid var(--panel-border); background: rgba(0, 0, 0, 0.3); margin-top: 40px; }
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.4fr; gap: 36px; padding: 56px 0 40px; }
+.footer-grid h4 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); margin-bottom: 16px; }
+.footer-grid ul { list-style: none; }
+.footer-grid li { margin-bottom: 9px; }
+.footer-grid a { color: var(--muted); font-size: 0.92rem; }
+.footer-grid a:hover { color: var(--accent); }
+.footer-about p { color: var(--muted); font-size: 0.92rem; margin-top: 12px; max-width: 300px; }
+.footer-bottom { border-top: 1px solid var(--panel-border); padding: 20px 0; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 0.84rem; }
+
+/* ====== Generic content pages ====== */
+.page-content { padding: 56px 0; max-width: 800px; }
+.page-content h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin-bottom: 24px; }
+.page-content p { color: var(--muted); margin-bottom: 16px; }
+.error-404 { text-align: center; padding: 110px 0; }
+.error-404 .code { font-size: 6rem; font-weight: 900; background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ====== Reveal animation ====== */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .reveal.is-visible { opacity: 1; transform: none; }
+}
+
+/* ====== Responsive ====== */
+@media (max-width: 1024px) {
+  .vehicle-layout { grid-template-columns: 1fr; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 860px) {
+  .main-nav { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-2); border-bottom: 1px solid var(--panel-border); padding: 12px; }
+  .main-nav.is-open { display: block; }
+  .main-nav ul { flex-direction: column; }
+  .nav-toggle { display: block; }
+  .header-phone { display: none; }
+  .search-bar { grid-template-columns: 1fr 1fr; }
+  .inventory-layout { grid-template-columns: 1fr; }
+  .filter-panel { position: static; }
+}
+@media (max-width: 560px) {
+  .search-bar { grid-template-columns: 1fr; }
+  .footer-grid { grid-template-columns: 1fr; }
+  .feature-list { grid-template-columns: 1fr; }
+}
