@@ -109,7 +109,7 @@ Account 1:
 Grandstream phones can also auto-provision from
 `https://pbx.kltconnect.com/provisioning/cfg<MAC>.xml` — supported now.
 
-## AI Agent on a number (2888 setup)
+## AI Agent on a number (2888 = KMGI agent, 8131 = Solo LLC agent)
 
 +1 256 712 2888 is answered by the SignalWire AI Agent ("Knox Media Group"),
 which transfers callers to the KMGI phones on request.
@@ -128,7 +128,9 @@ IMPORTANT: because 2888 is AI-handled, always run the sync script with
 `--skip 2888` or it will point the number back at the plain voice webhook
 and disconnect the AI:
 
-    npx tsx scripts/signalwire-sync.ts --apply --skip 2888
+    npx tsx scripts/signalwire-sync.ts --apply --skip 2888,8131
+
+8131 uses a second agent ("Solo LLC") whose transfer function URL ends in `?customerId=4`, ringing the sk-* extensions.
 
 To put the AI on another company's number, repeat the dashboard steps with
 `?customerId=2` (KLT Connect) or `?customerId=3` (ERITN) in the function
